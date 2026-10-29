@@ -1,6 +1,6 @@
 # Asisten Dokumen NusantaraCare
 
-README ini menjelaskan proyek yang saya buat untuk membantu mencari informasi di Panduan Operasional Internal NusantaraCare. Aplikasinya berupa API FastAPI. Saat `OPENAI_API_KEY` tersedia, aplikasi memakai embedding untuk mencari bagian dokumen yang relevan dan LLM untuk menyusun jawaban berdasarkan bagian tersebut. Setiap jawaban menyertakan kutipan. Kalau API key belum dipasang, aplikasi masih bisa dicoba dengan pencarian TF-IDF, tetapi hasilnya belum memakai mode GenAI penuh.
+Masalah utama yang saya lihat dari skenario ini adalah panjangnya panduan membuat karyawan perlu waktu untuk menemukan aturan yang tepat, sementara pencarian kata kunci belum tentu menangkap maksud pertanyaan. Karena itu, saya merancang layanan FastAPI dengan pendekatan RAG. Saya memilih embedding untuk mencari potongan konteks secara semantik, lalu menggunakan LLM untuk menyusun jawaban hanya dari konteks yang ditemukan. Setiap jawaban menyertakan kutipan supaya sumbernya bisa diperiksa. Untuk memenuhi tujuan GenAI saat deployment, saya akan menyimpan `OPENAI_API_KEY` sebagai secret di FastAPI Cloud. Pencarian TF-IDF tetap saya sediakan sebagai fallback saat mencoba aplikasi tanpa API key, bukan sebagai mode utama submission.
 
 Dokumen yang saya gunakan adalah file wajib dari tugas. File aslinya saya simpan tanpa perubahan di `data/raw_docs/nusantaracare_panduan_operasional_internal_v2.md`. Hash SHA-256 file sumber dan salinannya sama: `4C8AA6E896425547EC55392A7A8DF97142D20E3D93B480AA29494F0E6F514DB8`.
 
