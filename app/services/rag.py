@@ -133,8 +133,8 @@ class Retriever:
             raise KnowledgeBaseMissing("The required source document has no readable content")
         self.vectorizer = TfidfVectorizer(ngram_range=(1, 2), strip_accents="unicode")
         self.matrix = self.vectorizer.fit_transform([c.text for c in self.chunks])
-        self.embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-        self.client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
+        self.embedding_model = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
+        self.client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"), base_url="https://generativelanguage.googleapis.com/v1beta/openai/") if os.getenv("GEMINI_API_KEY") else None
         self.embeddings: list[list[float]] | None = None
         self.embedding_error: str | None = None
         if self.client:
@@ -156,7 +156,7 @@ class Retriever:
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
         if not self.client:
-            raise RuntimeError("OpenAI client is not configured")
+            raise RuntimeError("Gemini API client is not configured")
         vectors: list[list[float]] = []
         # Batch requests so this also works if the document grows later.
         for start in range(0, len(texts), 64):

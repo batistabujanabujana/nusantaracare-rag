@@ -1,6 +1,6 @@
 # Asisten Dokumen NusantaraCare
 
-Masalah utama yang saya lihat dari skenario ini adalah panjangnya panduan membuat karyawan perlu waktu untuk menemukan aturan yang tepat, sementara pencarian kata kunci belum tentu menangkap maksud pertanyaan. Karena itu, saya merancang layanan FastAPI dengan pendekatan RAG. Saya memilih embedding untuk mencari potongan konteks secara semantik, lalu menggunakan LLM untuk menyusun jawaban hanya dari konteks yang ditemukan. Setiap jawaban menyertakan kutipan supaya sumbernya bisa diperiksa. Untuk memenuhi tujuan GenAI saat deployment, saya akan menyimpan `OPENAI_API_KEY` sebagai secret di FastAPI Cloud. Pencarian TF-IDF tetap saya sediakan sebagai fallback saat mencoba aplikasi tanpa API key, bukan sebagai mode utama submission.
+Masalah utama yang saya lihat dari skenario ini adalah panjangnya panduan membuat karyawan perlu waktu untuk menemukan aturan yang tepat, sementara pencarian kata kunci belum tentu menangkap maksud pertanyaan. Karena itu, saya merancang layanan FastAPI dengan pendekatan RAG. Saya memilih embedding untuk mencari potongan konteks secara semantik, lalu menggunakan LLM untuk menyusun jawaban hanya dari konteks yang ditemukan. Setiap jawaban menyertakan kutipan supaya sumbernya bisa diperiksa. Untuk deployment, saya memilih Gemini API tetapi mengirim request memakai OpenAI Python SDK dan endpoint Gemini yang kompatibel dengan skema OpenAI. Jadi format request-nya OpenAI-compatible, sedangkan providernya tetap Gemini dan key yang dipakai adalah `GEMINI_API_KEY` sebagai secret di FastAPI Cloud. Saya memilih model yang saat ini tercantum di free tier Google AI Studio; kuotanya terbatas dan bergantung pada kelayakan akun. Saya tidak mengaktifkan billing. Pencarian TF-IDF tetap tersedia sebagai fallback bila key tidak dipasang.
 
 Dokumen yang saya gunakan adalah file wajib dari tugas. File aslinya saya simpan tanpa perubahan di `data/raw_docs/nusantaracare_panduan_operasional_internal_v2.md`. Hash SHA-256 file sumber dan salinannya sama: `4C8AA6E896425547EC55392A7A8DF97142D20E3D93B480AA29494F0E6F514DB8`.
 
@@ -10,7 +10,7 @@ Panduan operasional cukup panjang, jadi karyawan bisa kesulitan menemukan prosed
 
 Pertanyaan yang dituju adalah pertanyaan tentang SOP, layanan, kebijakan, FAQ, dan informasi lain yang memang ada di panduan. Target saya: API bisa diakses, jawaban punya kutipan yang bisa diperiksa, pertanyaan yang tidak didukung dokumen ditolak, dan aturan v1.4 yang sudah tidak aktif tidak dipakai sebagai aturan terbaru.
 
-Aplikasi ini hanya memakai satu dokumen. Pencarian semantik dan jawaban LLM membutuhkan koneksi internet serta `OPENAI_API_KEY`. Sistem ini juga belum mengatur hak akses untuk masing-masing karyawan. Deteksi prompt injection sudah ada, tetapi masih berbasis pola dan perlu diuji lebih lanjut.
+Aplikasi ini hanya memakai satu dokumen. Pencarian semantik dan jawaban LLM membutuhkan koneksi internet serta `GEMINI_API_KEY`. Sistem ini juga belum mengatur hak akses untuk masing-masing karyawan. Deteksi prompt injection sudah ada, tetapi masih berbasis pola dan perlu diuji lebih lanjut.
 
 ## 2. Isi Knowledge Base
 
@@ -28,7 +28,7 @@ Saat aplikasi mulai, dokumen dibaca sebagai UTF-8, metadata front matter diprose
 
 Setiap chunk menyimpan `doc_id`, `doc_title`, `section_title`, `doc_version`, `effective_date`, `is_active`, dan `chunk_id`.
 
-Jika `OPENAI_API_KEY` tersedia, aplikasi membuat embedding untuk chunk menggunakan `text-embedding-3-small`. Pencarian membandingkan embedding pertanyaan dan dokumen dengan cosine similarity, lalu menggabungkan skornya dengan TF-IDF dan kecocokan kalimat. Empat kandidat aktif teratas diteruskan ke model `gpt-6-luna` melalui Responses API. Nama model dapat diubah dengan `OPENAI_CHAT_MODEL`.
+Jika `GEMINI_API_KEY` tersedia, aplikasi membuat embedding chunk dengan `gemini-embedding-2` melalui endpoint Gemini yang memakai format OpenAI-compatible. Pencarian membandingkan embedding pertanyaan dan dokumen dengan cosine similarity, lalu menggabungkan skornya dengan TF-IDF dan kecocokan kalimat. Empat kandidat aktif teratas diteruskan ke model `gemini-3.8-flash` melalui operasi OpenAI-compatible `chat.completions.create`, memakai `messages` dan respons JSON. Nama model dapat diubah dengan `GEMINI_CHAT_MODEL`. Dengan demikian, proyek ini menggunakan skema request OpenAI tanpa memakai layanan atau API key OpenAI.
 
 Ambang awal semantic retrieval adalah 0.35 dan masih perlu disesuaikan setelah pengujian. Jika API key tidak ada atau embedding gagal dibuat, aplikasi memakai fallback TF-IDF dengan threshold 0.20. Embedding disimpan di memori. Untuk satu dokumen yang menghasilkan sekitar 48 chunk, saya belum memakai vector database terpisah; jika jumlah dokumen bertambah, FAISS atau ChromaDB bisa dipertimbangkan.
 
@@ -93,7 +93,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 Copy-Item .env.example .env
-# Isi OPENAI_API_KEY di file .env jika ingin mencoba mode GenAI penuh.
+# Isi GEMINI_API_KEY di file .env jika ingin mencoba mode GenAI penuh.
 uvicorn app.main:app --reload
 ```
 
@@ -117,7 +117,7 @@ Repository publik proyek ini: [batistabujanabujana/nusantaracare-rag](https://gi
 2. Hubungkan akun GitHub, lalu pilih repository `batistabujanabujana/nusantaracare-rag` dan branch `main`.
 3. Biarkan **Root Directory** kosong karena `pyproject.toml`, folder `app/`, dan folder `data/` ada di root repository.
 4. Buat aplikasi dan tunggu proses build serta deployment selesai.
-5. Di halaman aplikasi, buka **Environment Variables**, tambahkan `OPENAI_API_KEY`, tandai sebagai **Secret**, lalu pilih **Save and Redeploy**. API key tidak disimpan di repository.
+5. Di halaman aplikasi, buka **Environment Variables**, tambahkan `GEMINI_API_KEY`, tandai sebagai **Secret**, lalu pilih **Save and Redeploy**. API key tidak disimpan di repository. Pilih free tier Gemini dan jangan hubungkan billing bila ingin menghindari tagihan; free tier memiliki batas penggunaan dan ketersediaannya bergantung pada akun.
 6. Setelah deployment selesai, buka URL aplikasi yang diberikan FastAPI Cloud.
 
 FastAPI Cloud juga menyediakan CLI `fastapi deploy` untuk mengirim aplikasi dari folder lokal. Jika memakai CLI, jalankan perintah tersebut dari root proyek dan ikuti proses login serta pemilihan aplikasi yang ditampilkan. Untuk repository yang sudah dihubungkan ke GitHub, push commit baru ke branch `main` akan memicu deployment otomatis.
@@ -128,11 +128,15 @@ Jika platform meminta start command secara manual, gunakan:
 uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
+### Catatan penggunaan gratis
+
+Google menyatakan penggunaan Gemini API pada free tier tidak dikenai biaya untuk model yang memenuhi syarat, tetapi kuota dan akses bergantung pada akun. Penggunaan free tier dapat dipakai Google untuk meningkatkan produknya; karena itu, saya membatasi contoh ini pada dokumen tugas yang memang disediakan untuk proyek. Jangan kirim dokumen privat ke free-tier API. Saya tidak menghubungkan project Google ke billing, sehingga jika kuota atau akses gratis tidak tersedia, request seharusnya gagal alih-alih beralih ke penggunaan berbayar.
+
 ### Memeriksa deployment
 
 Buka `https://<nama-app>.fastapicloud.dev/health`. Untuk mode GenAI penuh, pastikan `knowledge_base_loaded`, `semantic_search_enabled`, dan `llm_enabled` bernilai `true`. Lalu buka `https://<nama-app>.fastapicloud.dev/docs`, coba `POST /ask`, dan periksa kutipan serta tiga field responsnya.
 
-Kalau status masih `degraded` atau request gagal, periksa log deployment dan pastikan secret `OPENAI_API_KEY` sudah disimpan, lalu lakukan redeploy. Perubahan kode setelahnya bisa dikirim dengan commit dan push ke `main`; FastAPI Cloud akan membangun ulang aplikasi jika integrasi GitHub aktif.
+Kalau status masih `degraded` atau request gagal, periksa log deployment dan pastikan secret `GEMINI_API_KEY` sudah disimpan, proyek Gemini masih berada di free tier, dan kuotanya belum habis; lalu lakukan redeploy. Perubahan kode setelahnya bisa dikirim dengan commit dan push ke `main`; FastAPI Cloud akan membangun ulang aplikasi jika integrasi GitHub aktif.
 
 ## 8. Pengujian dan hal yang masih perlu diperbaiki
 
