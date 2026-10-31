@@ -144,11 +144,15 @@ class Retriever:
                 # Keep the local service usable with keyword retrieval if the
                 # embedding API is unavailable; health exposes this fallback.
                 status_code = getattr(exc, "status_code", None)
-                self.embedding_error = (
-                    f"{type(exc).__name__} (HTTP {status_code})"
-                    if status_code is not None
-                    else type(exc).__name__
-                )
+                if isinstance(exc, TypeError):
+                    # TypeError text identifies local SDK/request-shape issues;
+                    # cap it and never include request headers or credentials.
+                    detail = str(exc).replace(os.getenv("GEMINI_API_KEY", ""), "[redacted]")
+                    self.embedding_error = f"TypeError: {detail[:180]}"
+                elif status_code is not None:
+                    self.embedding_error = f"{type(exc).__name__} (HTTP {status_code})"
+                else:
+                    self.embedding_error = type(exc).__name__
                 self.client = None
         self.evidence = [
             (chunk_index, sentence.strip())
