@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 
 from app.services.rag import OUT_OF_SCOPE_RE, Retriever, answer_question, looks_like_injection
 
+logger = logging.getLogger(__name__)
 GENERATION_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.8-flash")
 SEMANTIC_THRESHOLD = 0.35  # Initial threshold; tune against a labeled question set.
 
@@ -32,6 +34,14 @@ def generate_answer(retriever: Retriever, question: str) -> dict:
     try:
         matches = [m for m in retriever.search(question, top_k=4) if m[1] >= threshold]
     except Exception as exc:
+        status_code = getattr(exc, "status_code", None)
+        detail = str(exc).replace(os.getenv("GEMINI_API_KEY", ""), "[redacted]")[:300]
+        logger.error(
+            "Gemini retrieval request failed (%s, HTTP %s): %s",
+            type(exc).__name__,
+            status_code if status_code is not None else "n/a",
+            detail,
+        )
         raise AnswerGenerationUnavailable(type(exc).__name__) from exc
     if not matches:
         return {
@@ -73,6 +83,14 @@ def generate_answer(retriever: Retriever, question: str) -> dict:
             temperature=0.1,
         )
     except Exception as exc:
+        status_code = getattr(exc, "status_code", None)
+        detail = str(exc).replace(os.getenv("GEMINI_API_KEY", ""), "[redacted]")[:300]
+        logger.error(
+            "Gemini chat request failed (%s, HTTP %s): %s",
+            type(exc).__name__,
+            status_code if status_code is not None else "n/a",
+            detail,
+        )
         raise AnswerGenerationUnavailable(type(exc).__name__) from exc
 
     try:
