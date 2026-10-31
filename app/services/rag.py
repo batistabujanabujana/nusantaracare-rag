@@ -173,7 +173,13 @@ class Retriever:
                 model=self.embedding_model,
                 input=texts[start : start + 64],
             )
-            vectors.extend(item.embedding for item in sorted(response.data, key=lambda item: item.index))
+            items = response.data
+            # Gemini's OpenAI-compatible embedding response can omit an index
+            # on some items. Sort only when every index is an integer; otherwise
+            # preserve the response order (which follows the submitted inputs).
+            if all(isinstance(item.index, int) for item in items):
+                items = sorted(items, key=lambda item: item.index)
+            vectors.extend(item.embedding for item in items)
         return vectors
 
     @staticmethod
