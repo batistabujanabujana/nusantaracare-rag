@@ -134,7 +134,16 @@ class Retriever:
         self.vectorizer = TfidfVectorizer(ngram_range=(1, 2), strip_accents="unicode")
         self.matrix = self.vectorizer.fit_transform([c.text for c in self.chunks])
         self.embedding_model = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
-        self.client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"), base_url="https://generativelanguage.googleapis.com/v1beta/openai/") if os.getenv("GEMINI_API_KEY") else None
+        self.client = (
+            OpenAI(
+                api_key=os.getenv("GEMINI_API_KEY"),
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                timeout=55.0,
+                max_retries=0,
+            )
+            if os.getenv("GEMINI_API_KEY")
+            else None
+        )
         self.embeddings: list[list[float]] | None = None
         self.embedding_error: str | None = None
         if self.client:
