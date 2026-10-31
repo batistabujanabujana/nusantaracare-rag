@@ -143,7 +143,12 @@ class Retriever:
             except Exception as exc:
                 # Keep the local service usable with keyword retrieval if the
                 # embedding API is unavailable; health exposes this fallback.
-                self.embedding_error = type(exc).__name__
+                status_code = getattr(exc, "status_code", None)
+                self.embedding_error = (
+                    f"{type(exc).__name__} (HTTP {status_code})"
+                    if status_code is not None
+                    else type(exc).__name__
+                )
                 self.client = None
         self.evidence = [
             (chunk_index, sentence.strip())

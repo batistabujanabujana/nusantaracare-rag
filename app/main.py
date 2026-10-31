@@ -45,6 +45,11 @@ def health():
         "knowledge_base_loaded": ready,
         "semantic_search_enabled": genai_ready,
         "llm_enabled": genai_ready,
+        # Safe diagnostic only: exception class/status, never request details
+        # or credential values.
+        "genai_initialization_error": (
+            retriever.embedding_error if ready and not genai_ready else None
+        ),
     }
 
 
